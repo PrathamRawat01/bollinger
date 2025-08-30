@@ -53,7 +53,13 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             key: string
             title?: string
             type: "line" | "polygon"
-            styles: (_: IndicatorFigureStylesCallbackData<{ upper?: number | null; lower?: number | null; basis?: number | null }>) => Record<string, unknown>
+            styles: (
+                _: IndicatorFigureStylesCallbackData<{
+                    upper?: number | null
+                    lower?: number | null
+                    basis?: number | null
+                }>
+            ) => Record<string, unknown>
             baseValue?: unknown
             value?: (d: { upper?: number | null; lower?: number | null }) => [number | null, number | null]
         }> = []
@@ -119,25 +125,29 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         const chart = init("kline-container")
         chartRef.current = chart
 
-        chart.applyNewData(kData)
-        chart.setStyles({
-            grid: {
-                horizontal: { show: true, line: { color: "#e0e0e0" } },
-                vertical: { show: true, line: { color: "#e0e0e0" } },
-            },
-            candle: {
-                type: "candle_solid" as CandleType,
-                bar: { upColor: "#26a69a", downColor: "#ef5350", noChangeColor: "#999" },
-            },
-            background: { color: "#ffffff" },
-        })
+        if (chart) {
+            chart.applyNewData(kData)
+            chart.setStyles({
+                grid: {
+                    horizontal: { show: true, line: { color: "#e0e0e0" } },
+                    vertical: { show: true, line: { color: "#e0e0e0" } },
+                },
+                candle: {
+                    type: "candle_solid" as CandleType,
+                    bar: { upColor: "#26a69a", downColor: "#ef5350", noChangeColor: "#999" },
+                },
+                background: { color: "#ffffff" },
+            })
+        }
 
         return () => dispose("kline-container")
     }, [kData]) // ✅ added kData so no eslint warning
 
     // update price data
     useEffect(() => {
-        chartRef.current?.applyNewData(kData)
+        if (chartRef.current) {
+            chartRef.current.applyNewData(kData)
+        }
     }, [kData])
 
     // indicator lifecycle + live updates
