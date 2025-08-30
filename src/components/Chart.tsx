@@ -29,11 +29,9 @@ type Props = { data: OHLCV[]; bbOptions: BBOptions; showBB: boolean };
 
 const INDICATOR_NAME = "BB";
 
-// map UI to klinecharts values
 const toLineStyle = (v: string): "solid" | "dashed" =>
     v?.toLowerCase().startsWith("dash") ? "dashed" : "solid";
 
-// hex + opacity → rgba()
 function withOpacity(hex: string, opacity: number) {
     const h = (hex ?? "").replace("#", "");
     const full = h.length === 3 ? h.split("").map((x) => x + x).join("") : h;
@@ -45,7 +43,6 @@ function withOpacity(hex: string, opacity: number) {
     return `rgba(${r},${g},${b},${a})`;
 }
 
-/** Shape of a single indicator point we feed to the klinecharts figures */
 type BBPoint = {
     basis?: number | null;
     upper?: number | null;
@@ -59,7 +56,6 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
     const kData = useMemo(() => toK(data), [data]);
 
-    // --- figures (live update with bbOptions) ---
     const figures = useMemo(() => {
         const f: Array<{
             key: string;
@@ -128,25 +124,22 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         return f;
     }, [bbOptions]);
 
-    // --- init chart once on mount ---
+    // --- init chart ---
     useEffect(() => {
         if (!containerRef.current) return;
 
         const chart = init(containerRef.current);
         chartRef.current = chart;
 
-        // guard because init may return null per typings
         if (chart) {
-            // apply initial data & styles
             chart.applyNewData(kData);
+
             chart.setStyles({
                 grid: {
                     horizontal: { show: true, color: "#e0e0e0" },
                     vertical: { show: true, color: "#e0e0e0" },
                 },
-                layout: {
-                    background: { color: "#ffffff" },
-                },
+                background: { color: "#ffffff" }, // ✅ correct way in v9
                 candle: {
                     type: "candle_solid" as CandleType,
                     bar: {
@@ -157,7 +150,6 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             });
         }
 
-        // cleanup
         return () => {
             try {
                 if (chartRef.current) {
@@ -168,23 +160,24 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                     }
                 }
             } finally {
-                dispose(containerRef.current!);
+                if (containerRef.current) {
+                    dispose(containerRef.current);
+                }
                 chartRef.current = null;
                 registeredRef.current = false;
             }
         };
-        // init once
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // --- apply new price data whenever kData changes ---
+    // --- update price data ---
     useEffect(() => {
         if (chartRef.current) {
             chartRef.current.applyNewData(kData);
         }
     }, [kData]);
 
-    // --- indicator lifecycle & live updates ---
+    // --- indicator lifecycle ---
     useEffect(() => {
         const chart = chartRef.current;
         if (!chart) return;
@@ -193,13 +186,12 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             try {
                 chart.removeIndicator("candle_pane", INDICATOR_NAME);
             } catch {
-                // ignore if not present
+                //
             }
             registeredRef.current = false;
             return;
         }
 
-        // compute bollinger results
         const bbResult = computeBollingerBands(data, bbOptions);
         const indicatorData: BBPoint[] = bbResult.map((d) => ({
             basis: d.basis ?? null,
@@ -207,7 +199,6 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             lower: d.lower ?? null,
         }));
 
-        // If not registered yet, register the indicator skeleton (figures/data will be overridden)
         if (!registeredRef.current) {
             try {
                 registerIndicator({
@@ -218,18 +209,15 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 });
                 registeredRef.current = true;
             } catch {
-                // some environments may already have it registered globally — that's fine
                 registeredRef.current = true;
             }
 
-            // create the indicator on the candle pane (guard with try/catch)
             try {
                 chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
             } catch {
-                // ignore if already exists
+                //
             }
         } else {
-            // override data & figures on subsequent updates
             try {
                 chart.overrideIndicator({
                     name: INDICATOR_NAME,
@@ -237,7 +225,6 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                     figures,
                 });
             } catch {
-                // if override fails for any reason, try re-registering gracefully
                 try {
                     registerIndicator({
                         name: INDICATOR_NAME,
@@ -247,7 +234,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                     });
                     chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
                 } catch {
-                    // last resort: ignore
+                    //
                 }
             }
         }
