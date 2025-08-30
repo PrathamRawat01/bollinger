@@ -1,68 +1,76 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useMemo } from "react"
+import { useEffect, useRef, useMemo } from "react";
 import {
-    init, dispose, registerIndicator,
-    type Chart as KChart, type KLineData, type CandleType,
+    init,
+    dispose,
+    registerIndicator,
+    type Chart as KChart,
+    type KLineData,
+    type CandleType,
     type IndicatorFigureStylesCallbackData,
-} from "klinecharts"
+} from "klinecharts";
 
-import type { OHLCV, BBOptions } from "@/lib/types"
-import { computeBollingerBands } from "@/lib/indicators/bollinger"
+import type { OHLCV, BBOptions } from "@/lib/types";
+import { computeBollingerBands } from "@/lib/indicators/bollinger";
 
 function toK(data: OHLCV[]): KLineData[] {
-    return data.map(d => ({
+    return data.map((d) => ({
         timestamp: d.timestamp,
         open: d.open,
         high: d.high,
         low: d.low,
         close: d.close,
         volume: d.volume,
-    }))
+    }));
 }
 
-type Props = { data: OHLCV[]; bbOptions: BBOptions; showBB: boolean }
+type Props = { data: OHLCV[]; bbOptions: BBOptions; showBB: boolean };
 
-const INDICATOR_NAME = "BB"
+const INDICATOR_NAME = "BB";
 
 // map UI to klinecharts values
 const toLineStyle = (v: string): "solid" | "dashed" =>
-    v?.toLowerCase().startsWith("dash") ? "dashed" : "solid"
+    v?.toLowerCase().startsWith("dash") ? "dashed" : "solid";
 
 // hex + opacity → rgba()
 function withOpacity(hex: string, opacity: number) {
-    const h = hex.replace("#", "")
-    const full = h.length === 3 ? h.split("").map(x => x + x).join("") : h
-    const n = parseInt(full, 16)
+    const h = (hex ?? "").replace("#", "");
+    const full = h.length === 3 ? h.split("").map((x) => x + x).join("") : h;
+    const n = parseInt(full || "000000", 16);
     const r = (n >> 16) & 255,
         g = (n >> 8) & 255,
-        b = n & 255
-    const a = Math.max(0, Math.min(1, opacity ?? 1))
-    return `rgba(${r},${g},${b},${a})`
+        b = n & 255;
+    const a = Math.max(0, Math.min(1, opacity ?? 1));
+    return `rgba(${r},${g},${b},${a})`;
 }
 
+/** Shape of a single indicator point we feed to the klinecharts figures */
+type BBPoint = {
+    basis?: number | null;
+    upper?: number | null;
+    lower?: number | null;
+};
+
 export function Chart({ data, bbOptions, showBB }: Props) {
-    const chartRef = useRef<KChart | null>(null)
-    const registeredRef = useRef(false)
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const chartRef = useRef<KChart | null>(null);
+    const registeredRef = useRef(false);
 
-    const kData = useMemo(() => toK(data), [data])
+    const kData = useMemo(() => toK(data), [data]);
 
-    // figures (live update with bbOptions)
+    // --- figures (live update with bbOptions) ---
     const figures = useMemo(() => {
         const f: Array<{
-            key: string
-            title?: string
-            type: "line" | "polygon"
+            key: string;
+            title?: string;
+            type: "line" | "polygon";
             styles: (
-                _: IndicatorFigureStylesCallbackData<{
-                    upper?: number | null
-                    lower?: number | null
-                    basis?: number | null
-                }>
-            ) => Record<string, unknown>
-            baseValue?: unknown
-            value?: (d: { upper?: number | null; lower?: number | null }) => [number | null, number | null]
-        }> = []
+                _: IndicatorFigureStylesCallbackData<BBPoint>
+            ) => Record<string, unknown>;
+            baseValue?: unknown;
+            value?: (d: BBPoint) => [number | null, number | null];
+        }> = [];
 
         if (bbOptions.showBasis) {
             f.push({
@@ -74,7 +82,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                     size: bbOptions.basisWidth,
                     style: toLineStyle(bbOptions.basisStyle),
                 }),
-            })
+            });
         }
 
         if (bbOptions.showUpper) {
@@ -87,7 +95,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                     size: bbOptions.upperWidth,
                     style: toLineStyle(bbOptions.upperStyle),
                 }),
-            })
+            });
         }
 
         if (bbOptions.showLower) {
@@ -100,7 +108,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                     size: bbOptions.lowerWidth,
                     style: toLineStyle(bbOptions.lowerStyle),
                 }),
-            })
+            });
         }
 
         if (bbOptions.showBackground) {
@@ -109,88 +117,142 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 title: "Band",
                 type: "polygon",
                 baseValue: "lower",
-                value: (d: { upper?: number | null; lower?: number | null }) => [d.upper ?? null, d.lower ?? null],
+                value: (d: BBPoint) => [d.upper ?? null, d.lower ?? null],
                 styles: () => ({
                     style: "fill",
                     color: withOpacity(bbOptions.upperColor, bbOptions.backgroundOpacity),
                 }),
-            })
+            });
         }
 
-        return f
-    }, [bbOptions])
+        return f;
+    }, [bbOptions]);
 
-    // init chart once
+    // --- init chart once on mount ---
     useEffect(() => {
-        const chart = init("kline-container")
-        chartRef.current = chart
+        if (!containerRef.current) return;
 
-        if (chart) {
-            chart.applyNewData(kData)
-            chart.setStyles({
-                grid: {
-                    horizontal: { show: true, color: "#e0e0e0" }, // ✅ fixed
-                    vertical: { show: true, color: "#e0e0e0" },   // ✅ fixed
-                },
-                candle: {
-                    type: "candle_solid" as CandleType,
-                    bar: {
-                        upColor: "#26a69a",
-                        downColor: "#ef5350",
-                        noChangeColor: "#999",
-                    },
-                },
+        const chart = init(containerRef.current);
+        chartRef.current = chart;
+
+        // initial styles (adapted to klinecharts v9 typings)
+        chart.setStyles({
+            grid: {
+                horizontal: { show: true, color: "#e0e0e0" },
+                vertical: { show: true, color: "#e0e0e0" },
+            },
+            layout: {
                 background: { color: "#ffffff" },
-            })
+            },
+            candle: {
+                type: "candle_solid" as CandleType,
+                bar: {
+                    upColor: "#26a69a",
+                    downColor: "#ef5350",
+                },
+            },
+        });
+
+        // cleanup
+        return () => {
+            try {
+                // remove any indicators if still present
+                if (chartRef.current) {
+                    try {
+                        chartRef.current.removeIndicator("candle_pane", INDICATOR_NAME);
+                    } catch {
+                        /* ignore */
+                    }
+                }
+            } finally {
+                dispose(containerRef.current!);
+                chartRef.current = null;
+                registeredRef.current = false;
+            }
+        };
+        // init once
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // --- apply new price data whenever kData changes ---
+    useEffect(() => {
+        if (chartRef.current) {
+            chartRef.current.applyNewData(kData);
         }
+    }, [kData]);
 
-        return () => dispose("kline-container")
-    }, [kData])
-
-    // update price data
+    // --- indicator lifecycle & live updates ---
     useEffect(() => {
-        chartRef.current?.applyNewData(kData)
-    }, [kData])
-
-    // indicator lifecycle + live updates
-    useEffect(() => {
-        const chart = chartRef.current
-        if (!chart) return
+        const chart = chartRef.current;
+        if (!chart) return;
 
         if (!showBB) {
-            chart.removeIndicator("candle_pane", INDICATOR_NAME)
-            registeredRef.current = false
-            return
+            try {
+                chart.removeIndicator("candle_pane", INDICATOR_NAME);
+            } catch {
+                // ignore if not present
+            }
+            registeredRef.current = false;
+            return;
         }
 
-        const bbResult = computeBollingerBands(data, bbOptions)
-        const indicatorData = bbResult.map(d => ({
+        // compute bollinger results
+        const bbResult = computeBollingerBands(data, bbOptions);
+        const indicatorData: BBPoint[] = bbResult.map((d) => ({
             basis: d.basis ?? null,
             upper: d.upper ?? null,
             lower: d.lower ?? null,
-        }))
+        }));
 
+        // If not registered yet, register the indicator skeleton (figures/data will be overridden)
         if (!registeredRef.current) {
-            registerIndicator({
-                name: INDICATOR_NAME,
-                shortName: "BB",
-                calc: () => indicatorData,
-                figures,
-            })
-            registeredRef.current = true
-            chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" })
+            try {
+                registerIndicator({
+                    name: INDICATOR_NAME,
+                    shortName: "BB",
+                    calc: () => indicatorData,
+                    figures,
+                });
+                registeredRef.current = true;
+            } catch {
+                // some environments may already have it registered globally — that's fine
+                registeredRef.current = true;
+            }
+
+            // create the indicator on the candle pane (guard with try/catch)
+            try {
+                chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
+            } catch {
+                // ignore if already exists
+            }
         } else {
-            chart.overrideIndicator({
-                name: INDICATOR_NAME,
-                calc: () => indicatorData,
-                figures,
-            })
+            // override data & figures on subsequent updates
+            try {
+                chart.overrideIndicator({
+                    name: INDICATOR_NAME,
+                    calc: () => indicatorData,
+                    figures,
+                });
+            } catch {
+                // if override fails for any reason, try re-registering gracefully
+                try {
+                    registerIndicator({
+                        name: INDICATOR_NAME,
+                        shortName: "BB",
+                        calc: () => indicatorData,
+                        figures,
+                    });
+                    chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
+                } catch {
+                    // last resort: ignore
+                }
+            }
         }
-    }, [showBB, data, bbOptions, figures])
+    }, [showBB, data, bbOptions, figures]);
 
     return (
         <div className="w-full rounded-2xl border border-gray-300 bg-white shadow">
-            <div id="kline-container" className="h-[620px] w-full" />
+            <div ref={containerRef} className="h-[620px] w-full" />
         </div>
-    )
+    );
 }
