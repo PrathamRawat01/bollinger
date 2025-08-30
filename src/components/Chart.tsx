@@ -9,7 +9,7 @@ import {
     type KLineData,
     type CandleType,
     type IndicatorFigureStylesCallback,
-    type LineType,
+    type LineType, // Import LineType from klinecharts
 } from "klinecharts";
 
 import type { OHLCV, BBOptions } from "@/lib/types";
@@ -30,7 +30,7 @@ type Props = { data: OHLCV[]; bbOptions: BBOptions; showBB: boolean };
 
 const INDICATOR_NAME = "BB";
 
-// map UI → klinecharts LineType
+// map UI to klinecharts values
 const toLineStyle = (v: string): LineType =>
     v?.toLowerCase().startsWith("dash") ? "dashed" : "solid";
 
@@ -66,7 +66,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             title?: string;
             type: "line" | "polygon";
             styles: IndicatorFigureStylesCallback<BBPoint>;
-            baseValue?: unknown;
+            baseValue?: string | number;
             value?: (d: BBPoint) => [number | null, number | null];
         }> = [];
 
@@ -156,7 +156,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 if (chartRef.current) {
                     try {
                         chartRef.current.removeIndicator("candle_pane", INDICATOR_NAME);
-                    } catch { /* ignore */ }
+                    } catch {
+                        /* ignore */
+                    }
                 }
             } finally {
                 if (containerRef.current) {
@@ -184,7 +186,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         if (!showBB) {
             try {
                 chart.removeIndicator("candle_pane", INDICATOR_NAME);
-            } catch { /* ignore */ }
+            } catch {
+                /* ignore */
+            }
             registeredRef.current = false;
             return;
         }
@@ -211,7 +215,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
             try {
                 chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
-            } catch { /* ignore */ }
+            } catch {
+                /* ignore */
+            }
         } else {
             try {
                 chart.overrideIndicator({
@@ -228,7 +234,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                         figures,
                     });
                     chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
-                } catch { /* ignore */ }
+                } catch {
+                    /* ignore */
+                }
             }
         }
     }, [showBB, data, bbOptions, figures]);
