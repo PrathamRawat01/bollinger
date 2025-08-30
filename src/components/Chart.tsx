@@ -29,11 +29,9 @@ type Props = { data: OHLCV[]; bbOptions: BBOptions; showBB: boolean };
 
 const INDICATOR_NAME = "BB";
 
-// map UI to klinecharts values
 const toLineStyle = (v: string): "solid" | "dashed" =>
     v?.toLowerCase().startsWith("dash") ? "dashed" : "solid";
 
-// hex + opacity → rgba()
 function withOpacity(hex: string, opacity: number) {
     const h = (hex ?? "").replace("#", "");
     const full = h.length === 3 ? h.split("").map((x) => x + x).join("") : h;
@@ -58,7 +56,6 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
     const kData = useMemo(() => toK(data), [data]);
 
-    // --- figures (live update with bbOptions) ---
     const figures = useMemo(() => {
         const f: Array<{
             key: string;
@@ -127,7 +124,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         return f;
     }, [bbOptions]);
 
-    // --- init chart once on mount ---
+    // --- init chart ---
     useEffect(() => {
         if (!containerRef.current) return;
 
@@ -136,12 +133,13 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
         if (chart) {
             chart.applyNewData(kData);
+
             chart.setStyles({
                 grid: {
                     horizontal: { show: true, color: "#e0e0e0" },
                     vertical: { show: true, color: "#e0e0e0" },
                 },
-                background: "#ffffff", // ✅ correct for v9
+                background: "#ffffff", // ✅ string, not object
                 candle: {
                     type: "candle_solid" as CandleType,
                     bar: {
@@ -157,9 +155,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 if (chartRef.current) {
                     try {
                         chartRef.current.removeIndicator("candle_pane", INDICATOR_NAME);
-                    } catch {
-                        /* ignore */
-                    }
+                    } catch { }
                 }
             } finally {
                 if (containerRef.current) {
@@ -172,14 +168,14 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // --- apply new price data whenever kData changes ---
+    // --- update price data ---
     useEffect(() => {
         if (chartRef.current) {
             chartRef.current.applyNewData(kData);
         }
     }, [kData]);
 
-    // --- indicator lifecycle & live updates ---
+    // --- indicator lifecycle ---
     useEffect(() => {
         const chart = chartRef.current;
         if (!chart) return;
@@ -187,9 +183,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         if (!showBB) {
             try {
                 chart.removeIndicator("candle_pane", INDICATOR_NAME);
-            } catch {
-                //
-            }
+            } catch { }
             registeredRef.current = false;
             return;
         }
@@ -216,9 +210,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
             try {
                 chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
-            } catch {
-                //
-            }
+            } catch { }
         } else {
             try {
                 chart.overrideIndicator({
@@ -235,9 +227,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                         figures,
                     });
                     chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
-                } catch {
-                    //
-                }
+                } catch { }
             }
         }
     }, [showBB, data, bbOptions, figures]);
