@@ -1,19 +1,18 @@
+
 "use client"
 
 import { useEffect, useRef, useMemo } from "react"
 import {
-    init,
-    dispose,
-    type Chart as KChart,
-    type KLineData,
-    type CandleType,
+    init, dispose, registerIndicator,
+    type Chart as KChart, type KLineData, type CandleType,
     type IndicatorFigureStylesCallbackData,
 } from "klinecharts"
+
 import type { OHLCV, BBOptions } from "@/lib/types"
 import { computeBollingerBands } from "@/lib/indicators/bollinger"
 
 function toK(data: OHLCV[]): KLineData[] {
-    return data.map((d) => ({
+    return data.map(d => ({
         timestamp: d.timestamp,
         open: d.open,
         high: d.high,
@@ -23,29 +22,52 @@ function toK(data: OHLCV[]): KLineData[] {
     }))
 }
 
-type Props = {
-    data: OHLCV[]
-    bbOptions: BBOptions
-    showBB: boolean
+type Props = { data: OHLCV[]; bbOptions: BBOptions; showBB: boolean }
+
+const INDICATOR_NAME = "BB"
+
+// map UI to klinecharts values
+const toLineStyle = (v: string): "solid" | "dashed" =>
+    v?.toLowerCase().startsWith("dash") ? "dashed" : "solid"
+
+// hex + opacity → rgba()
+function withOpacity(hex: string, opacity: number) {
+    const h = hex.replace("#", "")
+    const full = h.length === 3 ? h.split("").map(x => x + x).join("") : h
+    const n = parseInt(full, 16)
+    const r = (n >> 16) & 255,
+        g = (n >> 8) & 255,
+        b = n & 255
+    const a = Math.max(0, Math.min(1, opacity ?? 1))
+    return `rgba(${r},${g},${b},${a})`
 }
 
 export function Chart({ data, bbOptions, showBB }: Props) {
     const chartRef = useRef<KChart | null>(null)
+    const registeredRef = useRef(false)
 
     const kData = useMemo(() => toK(data), [data])
 
-    // Bollinger figures
+    // figures (live update with bbOptions)
     const figures = useMemo(() => {
-        const f: any[] = []
+        const f: Array<{
+            key: string
+            title?: string
+            type: "line" | "polygon"
+            styles: (_: IndicatorFigureStylesCallbackData) => Record<string, unknown>
+            baseValue?: unknown
+            value?: (d: any) => any
+        }> = []
 
         if (bbOptions.showBasis) {
             f.push({
                 key: "basis",
                 title: "Basis",
                 type: "line",
-                color: bbOptions.basisColor,
-                styles: (_: IndicatorFigureStylesCallbackData) => ({
-                    line: { size: bbOptions.basisWidth, style: bbOptions.basisStyle },
+                styles: () => ({
+                    color: bbOptions.basisColor,
+                    size: bbOptions.basisWidth,
+                    style: toLineStyle(bbOptions.basisStyle),
                 }),
             })
         }
@@ -55,9 +77,10 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 key: "upper",
                 title: "Upper",
                 type: "line",
-                color: bbOptions.upperColor,
                 styles: () => ({
-                    line: { size: bbOptions.upperWidth, style: bbOptions.upperStyle },
+                    color: bbOptions.upperColor,
+                    size: bbOptions.upperWidth,
+                    style: toLineStyle(bbOptions.upperStyle),
                 }),
             })
         }
@@ -67,9 +90,10 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 key: "lower",
                 title: "Lower",
                 type: "line",
-                color: bbOptions.lowerColor,
                 styles: () => ({
-                    line: { size: bbOptions.lowerWidth, style: bbOptions.lowerStyle },
+                    color: bbOptions.lowerColor,
+                    size: bbOptions.lowerWidth,
+                    style: toLineStyle(bbOptions.lowerStyle),
                 }),
             })
         }
@@ -79,15 +103,11 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 key: "band",
                 title: "Band",
                 type: "polygon",
-                // base + value tell polygon what to fill between
                 baseValue: "lower",
                 value: (d: any) => [d.upper, d.lower],
                 styles: () => ({
-                    polygon: {
-                        style: "fill",
-                        color: bbOptions.upperColor,
-                        opacity: bbOptions.backgroundOpacity,
-                    },
+                    style: "fill",
+                    color: withOpacity(bbOptions.upperColor, bbOptions.backgroundOpacity),
                 }),
             })
         }
@@ -95,13 +115,13 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         return f
     }, [bbOptions])
 
+
     // init chart once
     useEffect(() => {
         const chart = init("kline-container")
         chartRef.current = chart
 
         chart.applyNewData(kData)
-
         chart.setStyles({
             grid: {
                 horizontal: { show: true, line: { color: "#e0e0e0" } },
@@ -109,11 +129,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             },
             candle: {
                 type: "candle_solid" as CandleType,
-                bar: {
-                    upColor: "#26a69a",
-                    downColor: "#ef5350",
-                    noChangeColor: "#999",
-                },
+                bar: { upColor: "#26a69a", downColor: "#ef5350", noChangeColor: "#999" },
             },
             background: { color: "#ffffff" },
         })
@@ -121,40 +137,46 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         return () => dispose("kline-container")
     }, [])
 
-    // update base data
+    // update price data
     useEffect(() => {
         chartRef.current?.applyNewData(kData)
     }, [kData])
 
-    // update BB indicator
+    // indicator lifecycle + live updates
     useEffect(() => {
         const chart = chartRef.current
         if (!chart) return
 
-        try {
-            chart.removeIndicator("candle_pane", "BB")
-        } catch { }
+        if (!showBB) {
+            chart.removeIndicator("candle_pane", INDICATOR_NAME)
+            registeredRef.current = false
+            return
+        }
 
-        if (!showBB) return
+        const bbResult = computeBollingerBands(data, bbOptions)
+        const indicatorData = bbResult.map(d => ({
+            basis: d.basis ?? null,
+            upper: d.upper ?? null,
+            lower: d.lower ?? null,
+        }))
 
-        chart.createIndicator(
-            {
-                name: "BB",
+        if (!registeredRef.current) {
+            registerIndicator({
+                name: INDICATOR_NAME,
                 shortName: "BB",
-                calc: (kLineData: KLineData[]) => {
-                    const { basis, upper, lower } = computeBollingerBands(data, bbOptions)
-                    return kLineData.map((_, i) => ({
-                        basis: basis[i] ?? null,
-                        upper: upper[i] ?? null,
-                        lower: lower[i] ?? null,
-                    }))
-                },
+                calc: () => indicatorData,
                 figures,
-            },
-            false,
-            { id: "candle_pane" }
-        )
-    }, [figures, showBB, data, bbOptions])
+            })
+            registeredRef.current = true
+            chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" })
+        } else {
+            chart.overrideIndicator({
+                name: INDICATOR_NAME,
+                calc: () => indicatorData,
+                figures,
+            })
+        }
+    }, [showBB, data, bbOptions, figures])
 
     return (
         <div className="w-full rounded-2xl border border-gray-300 bg-white shadow">
