@@ -8,7 +8,7 @@ import {
     type Chart as KChart,
     type KLineData,
     type CandleType,
-    type IndicatorFigureStylesCallbackData,
+    type IndicatorFigureStylesCallback,
 } from "klinecharts";
 
 import type { OHLCV, BBOptions } from "@/lib/types";
@@ -29,9 +29,11 @@ type Props = { data: OHLCV[]; bbOptions: BBOptions; showBB: boolean };
 
 const INDICATOR_NAME = "BB";
 
+// map UI to klinecharts values
 const toLineStyle = (v: string): "solid" | "dashed" =>
     v?.toLowerCase().startsWith("dash") ? "dashed" : "solid";
 
+// hex + opacity → rgba()
 function withOpacity(hex: string, opacity: number) {
     const h = (hex ?? "").replace("#", "");
     const full = h.length === 3 ? h.split("").map((x) => x + x).join("") : h;
@@ -56,14 +58,13 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
     const kData = useMemo(() => toK(data), [data]);
 
+    // --- figures (live update with bbOptions) ---
     const figures = useMemo(() => {
         const f: Array<{
             key: string;
             title?: string;
             type: "line" | "polygon";
-            styles: (
-                _: IndicatorFigureStylesCallbackData<BBPoint>
-            ) => Record<string, unknown>;
+            styles: IndicatorFigureStylesCallback<BBPoint>;
             baseValue?: unknown;
             value?: (d: BBPoint) => [number | null, number | null];
         }> = [];
@@ -124,7 +125,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         return f;
     }, [bbOptions]);
 
-    // --- init chart ---
+    // --- init chart once on mount ---
     useEffect(() => {
         if (!containerRef.current) return;
 
@@ -133,13 +134,12 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
         if (chart) {
             chart.applyNewData(kData);
-
             chart.setStyles({
                 grid: {
                     horizontal: { show: true, color: "#e0e0e0" },
                     vertical: { show: true, color: "#e0e0e0" },
                 },
-                background: "#ffffff", // ✅ string, not object
+                background: "#ffffff", // ✅ correct type (string)
                 candle: {
                     type: "candle_solid" as CandleType,
                     bar: {
@@ -155,7 +155,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 if (chartRef.current) {
                     try {
                         chartRef.current.removeIndicator("candle_pane", INDICATOR_NAME);
-                    } catch { }
+                    } catch {
+                        /* ignore */
+                    }
                 }
             } finally {
                 if (containerRef.current) {
@@ -168,14 +170,14 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // --- update price data ---
+    // --- apply new price data whenever kData changes ---
     useEffect(() => {
         if (chartRef.current) {
             chartRef.current.applyNewData(kData);
         }
     }, [kData]);
 
-    // --- indicator lifecycle ---
+    // --- indicator lifecycle & live updates ---
     useEffect(() => {
         const chart = chartRef.current;
         if (!chart) return;
@@ -183,7 +185,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         if (!showBB) {
             try {
                 chart.removeIndicator("candle_pane", INDICATOR_NAME);
-            } catch { }
+            } catch {
+                /* ignore */
+            }
             registeredRef.current = false;
             return;
         }
@@ -210,7 +214,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
             try {
                 chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
-            } catch { }
+            } catch {
+                /* ignore */
+            }
         } else {
             try {
                 chart.overrideIndicator({
@@ -227,7 +233,9 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                         figures,
                     });
                     chart.createIndicator(INDICATOR_NAME, false, { id: "candle_pane" });
-                } catch { }
+                } catch {
+                    /* ignore */
+                }
             }
         }
     }, [showBB, data, bbOptions, figures]);
