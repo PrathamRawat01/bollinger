@@ -53,7 +53,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             key: string
             title?: string
             type: "line" | "polygon"
-            styles: (_: IndicatorFigureStylesCallbackData) => Record<string, unknown>
+            styles: (_: IndicatorFigureStylesCallbackData<{ upper?: number | null; lower?: number | null; basis?: number | null }>) => Record<string, unknown>
             baseValue?: unknown
             value?: (d: { upper?: number | null; lower?: number | null }) => [number | null, number | null]
         }> = []
