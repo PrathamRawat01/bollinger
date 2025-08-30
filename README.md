@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Bollinger Theta — Live Demo
 
-## Getting Started
+Hey there! I’m **Pratham Rawat**, and welcome to **Bollinger Theta**, my take on a smooth, modern Bollinger Bands overlay using React, Next.js, TypeScript, Tailwind CSS, and KLineCharts. You can check it out right here: **[https://bollinger-theta.vercel.app/](https://bollinger-theta.vercel.app/)**
 
-First, run the development server:
+
+
+# What’s in the Project?
+
+## Features
+
+* Clean candlestick chart with **Bollinger Bands** overlay.
+* Two-tab settings panel:
+
+  * **Inputs**: Adjust length (default 20), multiplier (default 2), MA type (SMA), etc.
+  * **Style**: Toggle middle/upper/lower bands, color, width, dashed/solid lines, and a translucent background fill.
+* Everything updates **instantly**, no page reloads.
+* Responsive to data loading using `computeBollingerBands()` — performance stays smooth, even with hundreds of candles.
+* Touch/crosshair support that shows Band values under the cursor.
+
+
+
+
+## Project Setup
+
+To get a copy of the project running locally:
 
 ```bash
+git clone [your-repo-url]
+cd your-project-folder
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Once everything’s running, open `http://localhost:3000` to explore the chart and settings panel.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Formulas & Standard Deviation
 
-## Learn More
+For clarity on the math under the hood:
 
-To learn more about Next.js, take a look at the following resources:
+* **Basis**: `SMA(source, length)`
+* **StdDev** (population formula): `sqrt( sum((source - mean)²) / length )`
+* **Upper**: `Basis + multiplier × StdDev`
+* **Lower**: `Basis - multiplier × StdDev`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Note: I use the **population** version (divide by *n*), consistent with John Bollinger's typical approach.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## KLineCharts Version
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+This project uses **KLineCharts v9** (as per dependencies in `package.json`) — it's lightweight and ideal for slick indicators like this one.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Screenshots & GIFs
+
+* ![Chart with Bands and Settings](./screenshot1.png)
+* ![Style Tab: Toggle Bands and Colors](./screenshot2.png)
+
+*(replace with actual screenshots or embed GIF links if available)*
+
+---
+
+## TL;DR — Why It Rocks
+
+| You Get...            | Why It’s Great                                   |
+| --------------------- | ------------------------------------------------ |
+| Real-time interaction | Changes feel smooth and intuitive                |
+| Full styling control  | Look, feel, and behavior inspired by TradingView |
+| Clean, modular code   | Easy to extend or integrate elsewhere            |
+| Performance-ready     | Handles 200+ candles like a champ                |
+
+---
+
+Let me know if you want a walkthrough or some help adapting this into your own project. Thanks for checking it out!
+
+— **Pratham**

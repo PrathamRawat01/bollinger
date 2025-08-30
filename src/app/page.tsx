@@ -12,7 +12,7 @@ export default function Page() {
   const [data, setData] = useState<OHLCV[]>([])
   const [showBB, setShowBB] = useState(false)
   const [bbOptions, setBbOptions] = useState<BBOptions>({
-    length: 4,
+    length: 20,
     maType: "SMA",
     source: "close",
     multiplier: 2,
