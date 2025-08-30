@@ -129,25 +129,27 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             chart.applyNewData(kData)
             chart.setStyles({
                 grid: {
-                    horizontal: { show: true, line: { color: "#e0e0e0" } },
-                    vertical: { show: true, line: { color: "#e0e0e0" } },
+                    horizontal: { show: true, color: "#e0e0e0" }, // ✅ fixed
+                    vertical: { show: true, color: "#e0e0e0" },   // ✅ fixed
                 },
                 candle: {
                     type: "candle_solid" as CandleType,
-                    bar: { upColor: "#26a69a", downColor: "#ef5350", noChangeColor: "#999" },
+                    bar: {
+                        upColor: "#26a69a",
+                        downColor: "#ef5350",
+                        noChangeColor: "#999",
+                    },
                 },
                 background: { color: "#ffffff" },
             })
         }
 
         return () => dispose("kline-container")
-    }, [kData]) // ✅ added kData so no eslint warning
+    }, [kData])
 
     // update price data
     useEffect(() => {
-        if (chartRef.current) {
-            chartRef.current.applyNewData(kData)
-        }
+        chartRef.current?.applyNewData(kData)
     }, [kData])
 
     // indicator lifecycle + live updates
