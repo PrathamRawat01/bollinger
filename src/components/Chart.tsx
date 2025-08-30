@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useRef, useMemo } from "react"
@@ -56,7 +55,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
             type: "line" | "polygon"
             styles: (_: IndicatorFigureStylesCallbackData) => Record<string, unknown>
             baseValue?: unknown
-            value?: (d: any) => any
+            value?: (d: { upper?: number | null; lower?: number | null }) => [number | null, number | null]
         }> = []
 
         if (bbOptions.showBasis) {
@@ -104,7 +103,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
                 title: "Band",
                 type: "polygon",
                 baseValue: "lower",
-                value: (d: any) => [d.upper, d.lower],
+                value: (d: { upper?: number | null; lower?: number | null }) => [d.upper ?? null, d.lower ?? null],
                 styles: () => ({
                     style: "fill",
                     color: withOpacity(bbOptions.upperColor, bbOptions.backgroundOpacity),
@@ -114,7 +113,6 @@ export function Chart({ data, bbOptions, showBB }: Props) {
 
         return f
     }, [bbOptions])
-
 
     // init chart once
     useEffect(() => {
@@ -135,7 +133,7 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         })
 
         return () => dispose("kline-container")
-    }, [])
+    }, [kData]) // ✅ added kData so no eslint warning
 
     // update price data
     useEffect(() => {

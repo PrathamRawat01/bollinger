@@ -1,7 +1,16 @@
-// lib/normalize.ts
 import type { OHLCV } from "@/lib/types"
 
-export function normalizeData(raw: any[]): OHLCV[] {
+type RawData = {
+    timestamp?: number | string
+    date?: string
+    open: number | string
+    high: number | string
+    low: number | string
+    close: number | string
+    volume?: number | string
+}
+
+export function normalizeData(raw: RawData[]): OHLCV[] {
     if (!Array.isArray(raw)) return []
 
     return raw.map((d, i) => {

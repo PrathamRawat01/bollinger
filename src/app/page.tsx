@@ -34,12 +34,11 @@ export default function Page() {
   })
 
   useEffect(() => {
-    setData(normalizeData(tsla as any[]))
+    setData(normalizeData(tsla as unknown as OHLCV[]))
   }, [])
 
   return (
     //keeping a ration of 70 , 26 for a good layout and 4 gap
-
     <main className="flex min-h-screen bg-gradient-to-br from-blue-300 to-pink-200 ease-in text-gray-900 p-4 gap-4">
       {/* Chart 70% */}
       <div className="w-[70%]">
