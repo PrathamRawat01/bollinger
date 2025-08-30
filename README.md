@@ -22,15 +22,15 @@ Hey there! I’m **Pratham Rawat**, and welcome to **Bollinger Theta**, my take 
 
 ## Project Setup
 
-To get a copy of the project running locally:
+To get a copy of the project:
 
 ```bash
-git clone [your-repo-url]
+git clone [https://github.com/PrathamRawat01/bollinger]
 cd your-project-folder
 npm install
 npm run dev
-```
 
+```
 Once everything’s running, open `http://localhost:3000` to explore the chart and settings panel.
 
 ---
@@ -54,12 +54,11 @@ This project uses **KLineCharts v9** (as per dependencies in `package.json`) —
 
 ---
 
-## Screenshots & GIFs
+## Screenshots & GIFs![alt text](image-1.png)
 
-* ![Chart with Bands and Settings](./screenshot1.png)
-* ![Style Tab: Toggle Bands and Colors](./screenshot2.png)
+* ![Chart with Bands and Settings](../bollinger/image.png)
+* ![Style Tab: Toggle Bands and Colors](../bollinger/image2.png)
 
-*(replace with actual screenshots or embed GIF links if available)*
 
 ---
 
@@ -76,4 +75,4 @@ This project uses **KLineCharts v9** (as per dependencies in `package.json`) —
 
 Let me know if you want a walkthrough or some help adapting this into your own project. Thanks for checking it out!
 
-— **Pratham**
+— **PrathamRawat**
