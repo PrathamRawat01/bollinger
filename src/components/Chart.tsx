@@ -135,28 +135,31 @@ export function Chart({ data, bbOptions, showBB }: Props) {
         const chart = init(containerRef.current);
         chartRef.current = chart;
 
-        // initial styles (adapted to klinecharts v9 typings)
-        chart.setStyles({
-            grid: {
-                horizontal: { show: true, color: "#e0e0e0" },
-                vertical: { show: true, color: "#e0e0e0" },
-            },
-            layout: {
-                background: { color: "#ffffff" },
-            },
-            candle: {
-                type: "candle_solid" as CandleType,
-                bar: {
-                    upColor: "#26a69a",
-                    downColor: "#ef5350",
+        // guard because init may return null per typings
+        if (chart) {
+            // apply initial data & styles
+            chart.applyNewData(kData);
+            chart.setStyles({
+                grid: {
+                    horizontal: { show: true, color: "#e0e0e0" },
+                    vertical: { show: true, color: "#e0e0e0" },
                 },
-            },
-        });
+                layout: {
+                    background: { color: "#ffffff" },
+                },
+                candle: {
+                    type: "candle_solid" as CandleType,
+                    bar: {
+                        upColor: "#26a69a",
+                        downColor: "#ef5350",
+                    },
+                },
+            });
+        }
 
         // cleanup
         return () => {
             try {
-                // remove any indicators if still present
                 if (chartRef.current) {
                     try {
                         chartRef.current.removeIndicator("candle_pane", INDICATOR_NAME);
